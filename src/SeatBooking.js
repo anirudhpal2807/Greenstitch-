@@ -355,8 +355,29 @@ const SeatBooking = () => {
         setShowConfirmModal(false);
     };
 
+    /**
+     * Clear all selected seats (convert SELECTED to AVAILABLE)
+     * BOOKED seats remain unchanged
+     */
     const handleClearSelection = () => {
-        // TODO: Implement clear selection logic
+        // Clear any error messages
+        setErrorMessage('');
+
+        // Convert all SELECTED seats to AVAILABLE, keep BOOKED seats unchanged
+        const newSeats = seats.map(rowSeats =>
+            rowSeats.map(seat => {
+                if (seat.status === SEAT_STATUS.SELECTED) {
+                    return {
+                        ...seat,
+                        status: SEAT_STATUS.AVAILABLE
+                    };
+                }
+                // Keep BOOKED and AVAILABLE seats unchanged
+                return seat;
+            })
+        );
+
+        setSeats(newSeats);
     };
 
     const handleReset = () => {
