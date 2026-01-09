@@ -37,6 +37,7 @@ const SeatBooking = () => {
     };
 
     const [seats, setSeats] = useState(initializeSeats());
+    const [errorMessage, setErrorMessage] = useState('');
 
     // TODO: Implement all required functionality below
 
@@ -64,38 +65,127 @@ const SeatBooking = () => {
     const calculateTotalPrice = () => { return 0; };
 
     /**
+     * Check if selecting a seat would break the continuity rule
+     * Rule: Cannot have AVAILABLE seat between two SELECTED/BOOKED seats
+     * Exception: Gap is allowed if middle seat is BOOKED
+     * @param {number} row - Row index (0-based)
+     * @param {number} seat - Seat index within the row (0-based)
+     * @returns {string|null} Error message if rule would be broken, null otherwise
+     */
+    const validateSeatContinuity = (row, seat) => {
+        const rowSeats = seats[row];
+        const currentStatus = rowSeats[seat].status;
+
+        // Only validate when selecting (AVAILABLE → SELECTED)
+        // Deselecting (SELECTED → AVAILABLE) is always allowed
+        if (currentStatus !== SEAT_STATUS.AVAILABLE) {
+            return null;
+        }
+
+        // Find the leftmost SELECTED/BOOKED seat to the left
+        let leftBoundary = -1;
+        for (let i = seat - 1; i >= 0; i--) {
+            const status = rowSeats[i].status;
+            if (status === SEAT_STATUS.SELECTED || status === SEAT_STATUS.BOOKED) {
+                leftBoundary = i;
+                break;
+            }
+        }
+
+        // Find the rightmost SELECTED/BOOKED seat to the right
+        let rightBoundary = rowSeats.length;
+        for (let i = seat + 1; i < rowSeats.length; i++) {
+            const status = rowSeats[i].status;
+            if (status === SEAT_STATUS.SELECTED || status === SEAT_STATUS.BOOKED) {
+                rightBoundary = i;
+                break;
+            }
+        }
+
+        // If we have SELECTED/BOOKED seats on both sides, check for isolated AVAILABLE seats
+        if (leftBoundary !== -1 && rightBoundary !== rowSeats.length) {
+            // Check all seats between left and right boundaries (excluding the seat we're selecting)
+            for (let i = leftBoundary + 1; i < rightBoundary; i++) {
+                if (i !== seat && rowSeats[i].status === SEAT_STATUS.AVAILABLE) {
+                    // Found an AVAILABLE seat that would be isolated between SELECTED/BOOKED seats
+                    // Pattern: [SELECTED/BOOKED] ... [AVAILABLE] ... [SELECTED] ... [AVAILABLE] ... [SELECTED/BOOKED]
+                    // This violates the rule
+                    return 'Cannot leave an available seat isolated between selected/booked seats';
+                }
+            }
+        }
+
+        return null; // Validation passed
+    };
+
+    /**
      * Handle seat click to toggle between AVAILABLE and SELECTED
      * BOOKED seats cannot be changed
+     * Validates continuity rule before allowing selection
      * @param {number} row - Row index (0-based)
      * @param {number} seat - Seat index within the row (0-based)
      */
     const handleSeatClick = (row, seat) => {
+        // Clear any previous error messages
+        setErrorMessage('');
+
         // Do not allow changes to booked seats
         if (seats[row][seat].status === SEAT_STATUS.BOOKED) {
             return;
         }
 
-        // Create a new seats array without mutating the existing state
-        const newSeats = seats.map((rowSeats, rowIdx) => {
-            if (rowIdx !== row) {
-                return rowSeats; // Return unchanged rows
-            }
-            // For the clicked row, create a new array with updated seat
-            return rowSeats.map((seatItem, seatIdx) => {
-                if (seatIdx !== seat) {
-                    return seatItem; // Return unchanged seats
+        // If deselecting (SELECTED → AVAILABLE), allow it
+        if (seats[row][seat].status === SEAT_STATUS.SELECTED) {
+            // Create a new seats array without mutating the existing state
+            const newSeats = seats.map((rowSeats, rowIdx) => {
+                if (rowIdx !== row) {
+                    return rowSeats; // Return unchanged rows
                 }
-                // Toggle status: AVAILABLE → SELECTED, SELECTED → AVAILABLE
-                return {
-                    ...seatItem,
-                    status: seatItem.status === SEAT_STATUS.AVAILABLE
-                        ? SEAT_STATUS.SELECTED
-                        : SEAT_STATUS.AVAILABLE
-                };
+                // For the clicked row, create a new array with updated seat
+                return rowSeats.map((seatItem, seatIdx) => {
+                    if (seatIdx !== seat) {
+                        return seatItem; // Return unchanged seats
+                    }
+                    // Toggle status: SELECTED → AVAILABLE
+                    return {
+                        ...seatItem,
+                        status: SEAT_STATUS.AVAILABLE
+                    };
+                });
             });
-        });
 
-        setSeats(newSeats);
+            setSeats(newSeats);
+            return;
+        }
+
+        // If selecting (AVAILABLE → SELECTED), validate continuity rule
+        if (seats[row][seat].status === SEAT_STATUS.AVAILABLE) {
+            const validationError = validateSeatContinuity(row, seat);
+            if (validationError) {
+                setErrorMessage(validationError);
+                return; // Don't allow selection
+            }
+
+            // Create a new seats array without mutating the existing state
+            const newSeats = seats.map((rowSeats, rowIdx) => {
+                if (rowIdx !== row) {
+                    return rowSeats; // Return unchanged rows
+                }
+                // For the clicked row, create a new array with updated seat
+                return rowSeats.map((seatItem, seatIdx) => {
+                    if (seatIdx !== seat) {
+                        return seatItem; // Return unchanged seats
+                    }
+                    // Toggle status: AVAILABLE → SELECTED
+                    return {
+                        ...seatItem,
+                        status: SEAT_STATUS.SELECTED
+                    };
+                });
+            });
+
+            setSeats(newSeats);
+        }
     };
 
     const handleBookSeats = () => {
@@ -117,6 +207,21 @@ const SeatBooking = () => {
             data-testid="seat-booking-container"
         >
             <h1 data-testid="app-title">GreenStitch Seat Booking System</h1>
+
+            {errorMessage && (
+                <div className="error-message" data-testid="error-message" style={{
+                    backgroundColor: '#ffebee',
+                    color: '#c62828',
+                    padding: '12px',
+                    margin: '16px auto',
+                    borderRadius: '4px',
+                    maxWidth: '600px',
+                    textAlign: 'center',
+                    border: '1px solid #ef5350'
+                }}>
+                    {errorMessage}
+                </div>
+            )}
 
             <div className="info-panel" data-testid="info-panel">
                 <div className="info-item" data-testid="available-info">
