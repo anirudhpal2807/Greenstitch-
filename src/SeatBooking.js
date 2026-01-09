@@ -38,6 +38,7 @@ const SeatBooking = () => {
 
     const [seats, setSeats] = useState(initializeSeats());
     const [errorMessage, setErrorMessage] = useState('');
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     // TODO: Implement all required functionality below
 
@@ -259,6 +260,7 @@ const SeatBooking = () => {
     /**
      * Handle booking of selected seats
      * Validates that selected seats count does not exceed maximum limit
+     * Shows confirmation modal before proceeding
      */
     const handleBookSeats = () => {
         // Clear any previous error messages
@@ -276,7 +278,37 @@ const SeatBooking = () => {
             return; // No seats to book
         }
 
-        // TODO: Implement booking logic (convert SELECTED to BOOKED)
+        // Show confirmation modal
+        setShowConfirmModal(true);
+    };
+
+    /**
+     * Confirm booking and convert SELECTED seats to BOOKED
+     */
+    const confirmBooking = () => {
+        // Convert all SELECTED seats to BOOKED
+        const newSeats = seats.map(rowSeats =>
+            rowSeats.map(seat => {
+                if (seat.status === SEAT_STATUS.SELECTED) {
+                    return {
+                        ...seat,
+                        status: SEAT_STATUS.BOOKED
+                    };
+                }
+                return seat;
+            })
+        );
+
+        setSeats(newSeats);
+        setShowConfirmModal(false);
+        setErrorMessage(''); // Clear any error messages
+    };
+
+    /**
+     * Cancel booking confirmation
+     */
+    const cancelBooking = () => {
+        setShowConfirmModal(false);
     };
 
     const handleClearSelection = () => {
@@ -420,6 +452,88 @@ const SeatBooking = () => {
                     Reset All
                 </button>
             </div>
+
+            {/* Booking Confirmation Modal */}
+            {showConfirmModal && (
+                <div
+                    className="modal-overlay"
+                    data-testid="booking-confirm-modal"
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 1000
+                    }}
+                    onClick={cancelBooking}
+                >
+                    <div
+                        className="modal-content"
+                        data-testid="booking-confirm-content"
+                        style={{
+                            backgroundColor: '#fff',
+                            padding: '24px',
+                            borderRadius: '8px',
+                            maxWidth: '400px',
+                            width: '90%',
+                            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 style={{ marginTop: 0, marginBottom: '16px' }}>Confirm Booking</h2>
+                        <div style={{ marginBottom: '20px' }}>
+                            <p style={{ margin: '8px 0', fontSize: '16px' }}>
+                                <strong>Number of Seats:</strong> {getSelectedCount()}
+                            </p>
+                            <p style={{ margin: '8px 0', fontSize: '16px' }}>
+                                <strong>Total Price:</strong> ₹{calculateTotalPrice()}
+                            </p>
+                        </div>
+                        <p style={{ marginBottom: '20px', color: '#666' }}>
+                            Are you sure you want to proceed with this booking?
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn btn-cancel"
+                                data-testid="booking-cancel-button"
+                                onClick={cancelBooking}
+                                style={{
+                                    padding: '10px 20px',
+                                    backgroundColor: '#f5f5f5',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '14px'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn-confirm"
+                                data-testid="booking-confirm-button"
+                                onClick={confirmBooking}
+                                style={{
+                                    padding: '10px 20px',
+                                    backgroundColor: '#4caf50',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
