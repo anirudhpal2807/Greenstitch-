@@ -59,9 +59,53 @@ const SeatBooking = () => {
         }
         return 0; // Default fallback
     };
-    const getSelectedCount = () => { return 0; };
-    const getBookedCount = () => { return 0; };
-    const getAvailableCount = () => { return 0; };
+    /**
+     * Get count of available seats
+     * @returns {number} Count of seats with AVAILABLE status
+     */
+    const getAvailableCount = () => {
+        let count = 0;
+        seats.forEach(row => {
+            row.forEach(seat => {
+                if (seat.status === SEAT_STATUS.AVAILABLE) {
+                    count++;
+                }
+            });
+        });
+        return count;
+    };
+
+    /**
+     * Get count of selected seats
+     * @returns {number} Count of seats with SELECTED status
+     */
+    const getSelectedCount = () => {
+        let count = 0;
+        seats.forEach(row => {
+            row.forEach(seat => {
+                if (seat.status === SEAT_STATUS.SELECTED) {
+                    count++;
+                }
+            });
+        });
+        return count;
+    };
+
+    /**
+     * Get count of booked seats
+     * @returns {number} Count of seats with BOOKED status
+     */
+    const getBookedCount = () => {
+        let count = 0;
+        seats.forEach(row => {
+            row.forEach(seat => {
+                if (seat.status === SEAT_STATUS.BOOKED) {
+                    count++;
+                }
+            });
+        });
+        return count;
+    };
     const calculateTotalPrice = () => { return 0; };
 
     /**
