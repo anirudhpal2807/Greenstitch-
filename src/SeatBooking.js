@@ -63,8 +63,39 @@ const SeatBooking = () => {
     const getAvailableCount = () => { return 0; };
     const calculateTotalPrice = () => { return 0; };
 
+    /**
+     * Handle seat click to toggle between AVAILABLE and SELECTED
+     * BOOKED seats cannot be changed
+     * @param {number} row - Row index (0-based)
+     * @param {number} seat - Seat index within the row (0-based)
+     */
     const handleSeatClick = (row, seat) => {
-        // TODO: Implement seat selection logic
+        // Do not allow changes to booked seats
+        if (seats[row][seat].status === SEAT_STATUS.BOOKED) {
+            return;
+        }
+
+        // Create a new seats array without mutating the existing state
+        const newSeats = seats.map((rowSeats, rowIdx) => {
+            if (rowIdx !== row) {
+                return rowSeats; // Return unchanged rows
+            }
+            // For the clicked row, create a new array with updated seat
+            return rowSeats.map((seatItem, seatIdx) => {
+                if (seatIdx !== seat) {
+                    return seatItem; // Return unchanged seats
+                }
+                // Toggle status: AVAILABLE → SELECTED, SELECTED → AVAILABLE
+                return {
+                    ...seatItem,
+                    status: seatItem.status === SEAT_STATUS.AVAILABLE
+                        ? SEAT_STATUS.SELECTED
+                        : SEAT_STATUS.AVAILABLE
+                };
+            });
+        });
+
+        setSeats(newSeats);
     };
 
     const handleBookSeats = () => {
