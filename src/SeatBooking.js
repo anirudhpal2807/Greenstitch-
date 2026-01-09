@@ -380,8 +380,29 @@ const SeatBooking = () => {
         setSeats(newSeats);
     };
 
+    /**
+     * Reset entire system to initial state
+     * - All seats → AVAILABLE
+     * - Clear localStorage
+     * - Reset counters & price (automatic via state update)
+     */
     const handleReset = () => {
-        // TODO: Implement reset logic
+        // Clear any error messages
+        setErrorMessage('');
+
+        // Close confirmation modal if open
+        setShowConfirmModal(false);
+
+        // Clear localStorage
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch (error) {
+            console.error('Error clearing localStorage:', error);
+        }
+
+        // Reset all seats to AVAILABLE status
+        const resetSeats = initializeSeats();
+        setSeats(resetSeats);
     };
 
     return (
