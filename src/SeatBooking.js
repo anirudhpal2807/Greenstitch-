@@ -218,8 +218,16 @@ const SeatBooking = () => {
             return;
         }
 
-        // If selecting (AVAILABLE → SELECTED), validate continuity rule
+        // If selecting (AVAILABLE → SELECTED), validate booking limit and continuity rule
         if (seats[row][seat].status === SEAT_STATUS.AVAILABLE) {
+            // Check booking limit first
+            const currentSelectedCount = getSelectedCount();
+            if (currentSelectedCount >= MAX_SEATS_PER_BOOKING) {
+                setErrorMessage(`Maximum ${MAX_SEATS_PER_BOOKING} seats can be selected at a time`);
+                return; // Don't allow selection
+            }
+
+            // Validate continuity rule
             const validationError = validateSeatContinuity(row, seat);
             if (validationError) {
                 setErrorMessage(validationError);
@@ -248,8 +256,27 @@ const SeatBooking = () => {
         }
     };
 
+    /**
+     * Handle booking of selected seats
+     * Validates that selected seats count does not exceed maximum limit
+     */
     const handleBookSeats = () => {
-        // TODO: Implement booking logic
+        // Clear any previous error messages
+        setErrorMessage('');
+
+        const selectedCount = getSelectedCount();
+
+        // Validate booking limit
+        if (selectedCount > MAX_SEATS_PER_BOOKING) {
+            setErrorMessage(`Cannot book more than ${MAX_SEATS_PER_BOOKING} seats at a time. Please deselect some seats.`);
+            return; // Prevent booking
+        }
+
+        if (selectedCount === 0) {
+            return; // No seats to book
+        }
+
+        // TODO: Implement booking logic (convert SELECTED to BOOKED)
     };
 
     const handleClearSelection = () => {
