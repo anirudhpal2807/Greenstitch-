@@ -84,8 +84,6 @@ const SeatBooking = () => {
         saveSeatsToStorage(seats);
     }, [seats]); // Run whenever seats state changes
 
-    // TODO: Implement all required functionality below
-
     /**
      * Get seat price based on row index
      * @param {number} row - Row index (0-based)
