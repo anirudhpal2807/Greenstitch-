@@ -73,15 +73,39 @@ const SeatBooking = () => {
     // Initialize state - try to load from localStorage first, otherwise use default
     const [seats, setSeats] = useState(() => {
         const storedSeats = loadSeatsFromStorage();
-        return storedSeats || initializeSeats();
+        // Validate stored seats structure before using
+        if (storedSeats && Array.isArray(storedSeats) && storedSeats.length === ROWS) {
+            // Check if each row is a valid array
+            const isValid = storedSeats.every(row => Array.isArray(row) && row.length === SEATS_PER_ROW);
+            if (isValid) {
+                return storedSeats;
+            }
+        }
+        // Fallback to default initialization if stored data is invalid
+        return initializeSeats();
     });
     const [errorMessage, setErrorMessage] = useState('');
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+    // Validate and fix seats structure on mount
+    useEffect(() => {
+        if (!seats || !Array.isArray(seats) || seats.length !== ROWS) {
+            setSeats(initializeSeats());
+            return;
+        }
+        // Check if each row is valid
+        const isValid = seats.every(row => Array.isArray(row) && row.length === SEATS_PER_ROW);
+        if (!isValid) {
+            setSeats(initializeSeats());
+        }
+    }, []); // Run only once on mount
+
     // Save seats to localStorage whenever seats state changes
     // This ensures BOOKED seats are persisted across page refreshes
     useEffect(() => {
-        saveSeatsToStorage(seats);
+        if (seats && Array.isArray(seats)) {
+            saveSeatsToStorage(seats);
+        }
     }, [seats]); // Run whenever seats state changes
 
     /**
@@ -107,13 +131,16 @@ const SeatBooking = () => {
      * @returns {number} Count of seats with AVAILABLE status
      */
     const getAvailableCount = () => {
+        if (!seats || !Array.isArray(seats)) return 0;
         let count = 0;
         seats.forEach(row => {
-            row.forEach(seat => {
-                if (seat.status === SEAT_STATUS.AVAILABLE) {
-                    count++;
-                }
-            });
+            if (Array.isArray(row)) {
+                row.forEach(seat => {
+                    if (seat && seat.status === SEAT_STATUS.AVAILABLE) {
+                        count++;
+                    }
+                });
+            }
         });
         return count;
     };
@@ -123,13 +150,16 @@ const SeatBooking = () => {
      * @returns {number} Count of seats with SELECTED status
      */
     const getSelectedCount = () => {
+        if (!seats || !Array.isArray(seats)) return 0;
         let count = 0;
         seats.forEach(row => {
-            row.forEach(seat => {
-                if (seat.status === SEAT_STATUS.SELECTED) {
-                    count++;
-                }
-            });
+            if (Array.isArray(row)) {
+                row.forEach(seat => {
+                    if (seat && seat.status === SEAT_STATUS.SELECTED) {
+                        count++;
+                    }
+                });
+            }
         });
         return count;
     };
@@ -139,13 +169,16 @@ const SeatBooking = () => {
      * @returns {number} Count of seats with BOOKED status
      */
     const getBookedCount = () => {
+        if (!seats || !Array.isArray(seats)) return 0;
         let count = 0;
         seats.forEach(row => {
-            row.forEach(seat => {
-                if (seat.status === SEAT_STATUS.BOOKED) {
-                    count++;
-                }
-            });
+            if (Array.isArray(row)) {
+                row.forEach(seat => {
+                    if (seat && seat.status === SEAT_STATUS.BOOKED) {
+                        count++;
+                    }
+                });
+            }
         });
         return count;
     };
@@ -155,27 +188,36 @@ const SeatBooking = () => {
      * @returns {number} Total price of all selected seats
      */
     const calculateTotalPrice = () => {
+        if (!seats || !Array.isArray(seats)) return 0;
         let total = 0;
         seats.forEach((row, rowIndex) => {
-            row.forEach(seat => {
-                if (seat.status === SEAT_STATUS.SELECTED) {
-                    // Get price based on row and add to total
-                    total += getSeatPrice(rowIndex);
-                }
-            });
+            if (Array.isArray(row)) {
+                row.forEach(seat => {
+                    if (seat && seat.status === SEAT_STATUS.SELECTED) {
+                        // Get price based on row and add to total
+                        total += getSeatPrice(rowIndex);
+                    }
+                });
+            }
         });
         return total;
     };
 
     /**
      * Check if selecting a seat would break the continuity rule
-     * Rule: Cannot have AVAILABLE seat between two SELECTED/BOOKED seats
-     * Exception: Gap is allowed if middle seat is BOOKED
+     * Rule: Cannot leave AVAILABLE seat isolated between SELECTED/BOOKED seats
+     * Pattern NOT allowed: [Selected/Booked] [Available] [Selected/Booked]
+     * Exception: Gaps are allowed ONLY if caused by BOOKED seats (not AVAILABLE)
      * @param {number} row - Row index (0-based)
      * @param {number} seat - Seat index within the row (0-based)
      * @returns {string|null} Error message if rule would be broken, null otherwise
      */
     const validateSeatContinuity = (row, seat) => {
+        // Safety check: ensure seats array is valid
+        if (!seats || !Array.isArray(seats) || !seats[row] || !Array.isArray(seats[row]) || !seats[row][seat]) {
+            return null;
+        }
+
         const rowSeats = seats[row];
         const currentStatus = rowSeats[seat].status;
 
@@ -185,34 +227,80 @@ const SeatBooking = () => {
             return null;
         }
 
-        // Find the leftmost SELECTED/BOOKED seat to the left
+        // Find the nearest SELECTED or BOOKED seat to the left
         let leftBoundary = -1;
+        let leftStatus = null;
         for (let i = seat - 1; i >= 0; i--) {
             const status = rowSeats[i].status;
             if (status === SEAT_STATUS.SELECTED || status === SEAT_STATUS.BOOKED) {
                 leftBoundary = i;
+                leftStatus = status;
                 break;
             }
         }
 
-        // Find the rightmost SELECTED/BOOKED seat to the right
+        // Find the nearest SELECTED or BOOKED seat to the right
         let rightBoundary = rowSeats.length;
+        let rightStatus = null;
         for (let i = seat + 1; i < rowSeats.length; i++) {
             const status = rowSeats[i].status;
             if (status === SEAT_STATUS.SELECTED || status === SEAT_STATUS.BOOKED) {
                 rightBoundary = i;
+                rightStatus = status;
                 break;
             }
         }
 
-        // If we have SELECTED/BOOKED seats on both sides, check for isolated AVAILABLE seats
+        // If we have boundaries on both sides, check for isolated AVAILABLE seats
         if (leftBoundary !== -1 && rightBoundary !== rowSeats.length) {
             // Check all seats between left and right boundaries (excluding the seat we're selecting)
+            let hasAvailableBetween = false;
+            let allBetweenAreBooked = true;
+            
             for (let i = leftBoundary + 1; i < rightBoundary; i++) {
-                if (i !== seat && rowSeats[i].status === SEAT_STATUS.AVAILABLE) {
-                    // Found an AVAILABLE seat that would be isolated between SELECTED/BOOKED seats
-                    // Pattern: [SELECTED/BOOKED] ... [AVAILABLE] ... [SELECTED] ... [AVAILABLE] ... [SELECTED/BOOKED]
-                    // This violates the rule
+                if (i === seat) continue; // Skip the seat we're trying to select
+                
+                const seatStatus = rowSeats[i].status;
+                
+                if (seatStatus === SEAT_STATUS.AVAILABLE) {
+                    hasAvailableBetween = true;
+                    allBetweenAreBooked = false;
+                    break; // Found an AVAILABLE seat, no need to check further
+                } else if (seatStatus === SEAT_STATUS.SELECTED) {
+                    // If there's a SELECTED seat between boundaries, it's not a gap
+                    allBetweenAreBooked = false;
+                }
+                // If seatStatus is BOOKED, we continue checking
+            }
+
+            // Rule: Pattern [Selected/Booked] [Available] [Selected/Booked] is NOT allowed
+            // Exception: Gaps are allowed ONLY if ALL seats between are BOOKED
+            if (hasAvailableBetween) {
+                // Found AVAILABLE seat(s) between boundaries - this violates the rule
+                // Pattern: [Selected/Booked] [Available] [Selected/Booked] is NOT allowed
+                return 'Cannot leave an available seat isolated between selected/booked seats';
+            }
+            
+            // If all seats between are BOOKED, it's allowed (gap due to booked seats)
+            // This case is handled by the above check - if hasAvailableBetween is false, we allow it
+        }
+
+        // Additional check: After selecting this seat, will it create isolated AVAILABLE seats?
+        // Check between this seat and nearest SELECTED seat on left
+        if (leftBoundary !== -1 && leftStatus === SEAT_STATUS.SELECTED) {
+            for (let i = leftBoundary + 1; i < seat; i++) {
+                if (rowSeats[i].status === SEAT_STATUS.AVAILABLE) {
+                    // This AVAILABLE seat would be isolated between SELECTED seats
+                    return 'Cannot leave an available seat isolated between selected/booked seats';
+                }
+            }
+        }
+
+        // Check between this seat and nearest SELECTED seat on right
+        if (rightBoundary !== rowSeats.length && rightStatus === SEAT_STATUS.SELECTED) {
+            for (let i = seat + 1; i < rightBoundary; i++) {
+                if (rowSeats[i].status === SEAT_STATUS.AVAILABLE) {
+                    // This AVAILABLE seat would be isolated between SELECTED seats
                     return 'Cannot leave an available seat isolated between selected/booked seats';
                 }
             }
@@ -231,6 +319,11 @@ const SeatBooking = () => {
     const handleSeatClick = (row, seat) => {
         // Clear any previous error messages
         setErrorMessage('');
+
+        // Safety check: ensure seats array is valid
+        if (!seats || !Array.isArray(seats) || !seats[row] || !Array.isArray(seats[row]) || !seats[row][seat]) {
+            return;
+        }
 
         // Do not allow changes to booked seats
         if (seats[row][seat].status === SEAT_STATUS.BOOKED) {
@@ -463,7 +556,8 @@ const SeatBooking = () => {
             </div>
 
             <div className="seat-grid" data-testid="seat-grid">
-                {seats.map((row, rowIndex) => {
+                {seats && Array.isArray(seats) ? seats.map((row, rowIndex) => {
+                    if (!Array.isArray(row)) return null;
                     const rowLabel = String.fromCharCode(65 + rowIndex);
                     return (
                         <div
@@ -495,7 +589,7 @@ const SeatBooking = () => {
                             ))}
                         </div>
                     );
-                })}
+                }) : <div>Loading seats...</div>}
             </div>
 
             <div className="pricing-info" data-testid="pricing-info">
