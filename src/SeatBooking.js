@@ -106,7 +106,23 @@ const SeatBooking = () => {
         });
         return count;
     };
-    const calculateTotalPrice = () => { return 0; };
+    /**
+     * Calculate total price of all selected seats
+     * Only SELECTED seats are counted, pricing is based on row type
+     * @returns {number} Total price of all selected seats
+     */
+    const calculateTotalPrice = () => {
+        let total = 0;
+        seats.forEach((row, rowIndex) => {
+            row.forEach(seat => {
+                if (seat.status === SEAT_STATUS.SELECTED) {
+                    // Get price based on row and add to total
+                    total += getSeatPrice(rowIndex);
+                }
+            });
+        });
+        return total;
+    };
 
     /**
      * Check if selecting a seat would break the continuity rule
