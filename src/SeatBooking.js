@@ -40,7 +40,24 @@ const SeatBooking = () => {
 
     // TODO: Implement all required functionality below
 
-    const getSeatPrice = (row) => { return 0; };
+    /**
+     * Get seat price based on row index
+     * @param {number} row - Row index (0-based)
+     * @returns {number} Price for the seat in the given row
+     */
+    const getSeatPrice = (row) => {
+        if (row >= 0 && row <= 2) {
+            // Rows A-C (0-2) → Premium
+            return SEAT_PRICES.PREMIUM;
+        } else if (row >= 3 && row <= 5) {
+            // Rows D-F (3-5) → Standard
+            return SEAT_PRICES.STANDARD;
+        } else if (row >= 6 && row <= 7) {
+            // Rows G-H (6-7) → Economy
+            return SEAT_PRICES.ECONOMY;
+        }
+        return 0; // Default fallback
+    };
     const getSelectedCount = () => { return 0; };
     const getBookedCount = () => { return 0; };
     const getAvailableCount = () => { return 0; };
