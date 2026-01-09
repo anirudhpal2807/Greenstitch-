@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SeatBooking.css';
 
 const SEAT_STATUS = {
@@ -14,31 +14,75 @@ const SEAT_PRICES = {
 };
 
 const MAX_SEATS_PER_BOOKING = 8;
+const STORAGE_KEY = 'greenstitch_booked_seats';
+const ROWS = 8;
+const SEATS_PER_ROW = 10;
+
+/**
+ * Initialize seats with default AVAILABLE status
+ * @returns {Array} Initial seats array
+ */
+const initializeSeats = () => {
+    const seats = [];
+    for (let row = 0; row < ROWS; row++) {
+        const rowSeats = [];
+        for (let seat = 0; seat < SEATS_PER_ROW; seat++) {
+            rowSeats.push({
+                id: `${row}-${seat}`,
+                row: row,
+                seat: seat,
+                status: SEAT_STATUS.AVAILABLE
+            });
+        }
+        seats.push(rowSeats);
+    }
+    return seats;
+};
+
+/**
+ * Load seats from localStorage
+ * @returns {Array|null} Seats array if found in localStorage, null otherwise
+ */
+const loadSeatsFromStorage = () => {
+    try {
+        const storedSeats = localStorage.getItem(STORAGE_KEY);
+        if (storedSeats) {
+            return JSON.parse(storedSeats);
+        }
+    } catch (error) {
+        console.error('Error loading seats from localStorage:', error);
+    }
+    return null;
+};
+
+/**
+ * Save seats to localStorage
+ * Persists all seat statuses (including BOOKED) across refreshes
+ * @param {Array} seatsToSave - Seats array to save
+ */
+const saveSeatsToStorage = (seatsToSave) => {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(seatsToSave));
+    } catch (error) {
+        console.error('Error saving seats to localStorage:', error);
+    }
+};
 
 const SeatBooking = () => {
-    const ROWS = 8;
-    const SEATS_PER_ROW = 10;
 
-    const initializeSeats = () => {
-        const seats = [];
-        for (let row = 0; row < ROWS; row++) {
-            const rowSeats = [];
-            for (let seat = 0; seat < SEATS_PER_ROW; seat++) {
-                rowSeats.push({
-                    id: `${row}-${seat}`,
-                    row: row,
-                    seat: seat,
-                    status: SEAT_STATUS.AVAILABLE
-                });
-            }
-            seats.push(rowSeats);
-        }
-        return seats;
-    };
-
-    const [seats, setSeats] = useState(initializeSeats());
+    // Initialize state - try to load from localStorage first, otherwise use default
+    const [seats, setSeats] = useState(() => {
+        const storedSeats = loadSeatsFromStorage();
+        return storedSeats || initializeSeats();
+    });
     const [errorMessage, setErrorMessage] = useState('');
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+    // Save seats to localStorage whenever seats state changes
+    // This ensures BOOKED seats are persisted across page refreshes
+    useEffect(() => {
+        saveSeatsToStorage(seats);
+    }, [seats]); // Run whenever seats state changes
 
     // TODO: Implement all required functionality below
 
